@@ -1,0 +1,13 @@
+AZURE_CONSENT_URL: https://login.microsoftonline.com/3d61d24e-39f9-483e-b2b6-31e6318b387d/oauth2/authorize?client_id=c87943f7-99d3-4d53-a968-ab59adcc1d60&response_type=code
+
+A URL link to grant Snowflake permissions in your tenant.
+   
+AZURE_MULTI_TENANT_APP_NAME: qtrq52snowflakepacint_1785802004225
+
+Snowflake's Azure Enterprise App name
+ACCOUNT ID: NRMVDIM-XS00007
+USER NAME: KANWAR
+DATABASE: ZOMATO
+WAREHOUSE: ZOMATO_WH
+SCHEMA: STAGING
+ROLE: DBT_ROLE
