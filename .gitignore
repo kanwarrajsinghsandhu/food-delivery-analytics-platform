@@ -28,3 +28,17 @@ venv/
 
 # Generated outputs
 ai/review_embeddings.parquet
+
+
+
+# Personal/dev files
+zomato_er_diagram.png
+*.webp
+*.pptx
+linkedin_post_hand_off.md
+project_Plan.md
+Upload_To_Blob.py
+creds
+
+# Boilerplate (if recreated)
+jaffle_shop/
