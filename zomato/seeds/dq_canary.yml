@@ -1,0 +1,56 @@
+version: 2
+
+seeds:
+  - name: dq_canary_orders
+    description: >
+      Synthetic canary rows, NOT real order data. Exists solely to prove
+      test_order_total_reconciles fires on a genuine violation. 4 of 6 rows
+      reconcile correctly (control rows); rows 90003 and 90005 are
+      deliberately broken — one overstates sales_amount by 100.00, one
+      understates it by 70.00 — to confirm the same production macro catches
+      errors in both directions.
+    config:
+      tags: ['canary']
+      column_types:
+        order_id: integer
+        restaurant_id: integer
+        order_date: date
+        payment_method: string
+        subtotal: decimal(10,2)
+        discount: decimal(10,2)
+        delivery_fee: decimal(10,2)
+        gst: decimal(10,2)
+        sales_amount: decimal(10,2)
+    columns:
+      - name: sales_amount
+        tests:
+          - order_total_reconciles:
+              arguments:
+                tolerance: 0.01
+              config:
+                alias: dq_canary_order_reconciliation
+                tags: ['canary']
+
+  - name: dq_canary_grain_orders
+    description: >
+      Synthetic canary orders, NOT real order data. Paired with
+      dq_canary_grain_items for the cross-grain rollup canary. Order 90103
+      is deliberately overcharged relative to its own line items (subtotal
+      120.00, line items sum to 150.00) to simulate a fan-out / duplicate
+      line-item scenario.
+    config:
+      tags: ['canary']
+      column_types:
+        order_id: integer
+        items_count: integer
+        subtotal: decimal(10,2)
+
+  - name: dq_canary_grain_items
+    description: >
+      Synthetic canary line items paired with dq_canary_grain_orders.
+    config:
+      tags: ['canary']
+      column_types:
+        order_item_id: integer
+        order_id: integer
+        line_amount: decimal(10,2)

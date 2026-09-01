@@ -1,0 +1,10 @@
+select
+    cast(order_item_id as integer) as order_item_id,
+    cast(order_id as integer) as order_id,
+    cast(r_id as integer) as restaurant_id,
+    cast(f_id as integer) as food_id,
+    cast(price as decimal(10, 2)) as price,
+    cast(quantity as integer) as quantity,
+    cast(line_amount as decimal(10, 2)) as line_amount
+
+from {{ source('raw', 'order_items') }}

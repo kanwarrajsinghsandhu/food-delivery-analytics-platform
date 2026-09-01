@@ -1,0 +1,228 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: Cleaned and conformed orders table. Fact table with order-level financial and fulfillment metrics.
+    columns:
+      - name: order_id
+        description: Unique order identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: order_timestamp
+        description: Date and time when the order was placed (includes time-of-day for pattern analysis)
+        data_type: timestamp
+
+      - name: order_date
+        description: Date when the order was placed (derived from order_timestamp)
+        data_type: date
+
+      - name: customer_id
+        description: Foreign Key to users/customers table
+        tests:
+          - not_null
+          # TODO: Uncomment after stg_users is built
+          # - relationships:
+          #     arguments:
+          #       to: ref('stg_users')
+          #       field: user_id
+
+      - name: restaurant_id
+        description: Foreign Key to restaurants table
+        tests:
+          - not_null
+          # TODO: Uncomment after stg_restaurants is built
+          # - relationships:
+          #     arguments:
+          #       to: ref('stg_restaurants')
+          #       field: id
+
+      - name: city_area
+        description: Area/neighborhood within the city (e.g., 'South Kolkata' from 'South Kolkata,Kolkata')
+        data_type: string
+
+      - name: city
+        description: City name where the restaurant is located
+        data_type: string
+        tests:
+          - not_null
+
+      - name: cuisine
+        description: Comma-delimited list of cuisines offered by the restaurant for this order
+        data_type: string
+
+      - name: items_count
+        description: Number of distinct food items ordered
+        data_type: integer
+        tests:
+          - not_null
+
+      - name: sales_qty
+        description: Total quantity of items ordered (may differ from items_count if multiple units per item)
+        data_type: integer
+        tests:
+          - not_null
+
+      - name: subtotal
+        description: Order subtotal before discount, delivery fee, and GST (in INR)
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+
+      - name: discount
+        description: Discount amount applied to the order (in INR)
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+
+      - name: delivery_fee
+        description: Fee charged for delivery (in INR)
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+
+      - name: gst
+        description: Goods and Services Tax amount (in INR)
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+
+      - name: sales_amount
+        description: Final order total (subtotal - discount + delivery_fee + gst) in INR. This is the key reconciliation column validated by the custom test_order_total_reconciles macro (Phase 3).
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+          - order_total_reconciles:
+              arguments:
+                tolerance: 0.01
+
+      - name: currency
+        description: Currency of all monetary columns (expected to be 'INR' for all rows)
+        data_type: string
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['INR']
+
+      - name: payment_method
+        description: Method used to pay for the order
+        data_type: string
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Card', 'Wallet', 'UPI', 'COD', 'NetBanking']
+
+      - name: order_status
+        description: Final status of the order (Delivered, Cancelled, or Refunded)
+        data_type: string
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Delivered', 'Cancelled', 'Refunded']
+
+      - name: customer_rating
+        description: Customer rating given to the order (1–5 stars). NULL for orders that were cancelled, refunded, or not yet rated.
+        data_type: integer
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 5
+                inclusive: true
+
+      - name: delivery_time_min
+        description: Time taken to deliver the order in minutes. NULL for cancelled/refunded orders (no delivery occurred).
+        data_type: integer
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 999
+                inclusive: false
+
+      - name: is_delivered
+        description: Boolean flag indicating whether the order was successfully delivered
+        data_type: boolean
+        tests:
+          - not_null
+
+  - name: stg_order_items
+    description: Line items within each order. Fact table with item-level pricing and quantity. Each row represents one food item ordered.
+    columns:
+      - name: order_item_id
+        description: Unique order item identifier (Primary Key)
+        data_type: integer
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: Foreign Key to orders table
+        data_type: integer
+        tests:
+          - not_null
+          # TODO: Uncomment after stg_orders is confirmed built
+          # - relationships:
+          #     arguments:
+          #       to: ref('stg_orders')
+          #       field: order_id
+
+      - name: restaurant_id
+        description: Foreign Key to restaurants table
+        data_type: integer
+        tests:
+          - not_null
+          # TODO: Uncomment after stg_restaurants is built
+          # - relationships:
+          #     arguments:
+          #       to: ref('stg_restaurants')
+          #       field: id
+
+      - name: food_id
+        description: Foreign Key to food/menu items table
+        data_type: integer
+        tests:
+          - not_null
+          # TODO: Uncomment after stg_food is built
+          # - relationships:
+          #     arguments:
+          #       to: ref('stg_food')
+          #       field: f_id
+
+      - name: price
+        description: Price per unit of this food item (in INR)
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 99999
+                inclusive: false
+
+      - name: quantity
+        description: Quantity of this food item ordered
+        data_type: integer
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 999
+                inclusive: false
+
+      - name: line_amount
+        description: Total amount for this line item (price × quantity). Should equal price * quantity exactly.
+        data_type: decimal(10, 2)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 999999
+                inclusive: false
+          # TODO: Add custom test in Phase 3 to validate line_amount == price * quantity

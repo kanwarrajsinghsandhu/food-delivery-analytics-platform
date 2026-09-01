@@ -9,6 +9,7 @@ zomato/profiles.yml
 
 # Raw data (too large for GitHub)
 data/
+zomato_engineering_raw_data/
 
 # Logs
 logs/
@@ -42,3 +43,6 @@ creds
 
 # Boilerplate (if recreated)
 jaffle_shop/
+
+# Local Claude Code settings (can accumulate secrets via recorded commands)
+.claude/settings.local.json

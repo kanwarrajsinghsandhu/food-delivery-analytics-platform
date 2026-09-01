@@ -16,6 +16,12 @@ clean-targets:
 models:
   zomato:
     +static_analysis: strict
-    staging: { +materialized: view, +schema: staging }
-    marts: {+materialized: table, +schema: marts }
-    snapshot: {+materialized: snapshot, +schema: snapshots}
+    staging:
+      +materialized: view
+      # Uses profile default schema: STAGING
+    marts:
+      +materialized: table
+      +schema: MARTS
+    snapshot:
+      +materialized: snapshot
+      +schema: SNAPSHOTS
