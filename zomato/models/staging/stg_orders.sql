@@ -26,4 +26,4 @@ select
     cast(delivery_time_min as integer) as delivery_time_min,  -- Nullable; NULL for non-delivered orders
     (order_status = 'Delivered') as is_delivered
 
-from {{ source('raw', 'orders') }}
+from {{ source('raw', 'ORDERS') }}

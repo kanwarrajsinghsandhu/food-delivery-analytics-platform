@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(mkdir -p \"/private/tmp/claude-503/-Users-kanwarraj-Documents-Zomata-Data-Engineering/78c66f9f-fe1f-42ac-a2ad-c3da51e46be2/scratchpad/linkedin-carousel\")"
-    ]
-  }
-}

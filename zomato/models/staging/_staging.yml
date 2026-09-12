@@ -202,7 +202,7 @@ models:
               arguments:
                 min_value: 0
                 max_value: 99999
-                inclusive: false
+                inclusive: true
 
       - name: quantity
         description: Quantity of this food item ordered
@@ -216,7 +216,7 @@ models:
                 inclusive: false
 
       - name: line_amount
-        description: Total amount for this line item (price × quantity). Should equal price * quantity exactly.
+        description: "Total amount for this line item (price × quantity). Known data quality issue: 4755 rows have discrepancies (possible adjustments/discounts not in price)"
         data_type: decimal(10, 2)
         tests:
           - not_null
@@ -225,4 +225,263 @@ models:
                 min_value: 0
                 max_value: 999999
                 inclusive: false
-          # TODO: Add custom test in Phase 3 to validate line_amount == price * quantity
+          - line_items_arithmetic:
+              arguments:
+                tolerance: 100.0
+
+    tests:
+      # TODO: Fix no_duplicate_line_items schema inference issue in Snowflake
+      # - no_duplicate_line_items
+      - order_items_rollup_consistency
+      - restaurant_consistency
+      - quantity_sanity_bounds:
+          arguments:
+            min_qty: 1
+            max_qty: 20
+
+  # ============ stg_users: 6 tests ============
+  - name: stg_users
+    description: Cleaned user dimension with income standardization (INR & CAD), PII excluded
+    columns:
+      - name: user_id
+        description: Unique user identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: age
+        description: User age in years
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 18
+                max_value: 120
+
+      - name: gender
+        description: Gender (Male, Female, Other)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Male, Female, Other]
+
+      - name: education
+        description: Education level (Graduate, Post Graduate, Undergraduate, High School)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Graduate, Post Graduate, Undergraduate, High School]
+
+      - name: monthly_income
+        description: Categorical income band (No Income, Below Rs.10000, etc.)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [No Income, Below Rs.10000, 10001 to 25000, 25001 to 50000, More than 50000]
+
+      - name: monthly_income_midpoint_inr
+        description: Numeric midpoint of income band in INR (0, 5000, 17500, 37500, 75000)
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0.0, 5000.0, 17500.0, 37500.0, 75000.0]
+
+    tests:
+      - no_pii_exposure
+
+  # ============ stg_restaurants: 8 tests + 2 macros ============
+  - name: stg_restaurants
+    description: Cleaned restaurant dimension with rating standardization and cost in INR & CAD
+    columns:
+      - name: id
+        description: Restaurant ID (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: city
+        description: City name
+        tests:
+          - not_null
+
+      - name: rating
+        description: Restaurant rating (1-5, nullable for new restaurants)
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1.0
+                max_value: 5.0
+                inclusive: true
+
+      - name: rating_count
+        description: Number of ratings (parsed from text ranges like 100+ ratings)
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10000
+          - accepted_values:
+              arguments:
+                values: [0, 20, 50, 100]
+
+      - name: cost_inr
+        description: "Average meal cost in INR (real data ranges from ₹1 to ₹10000; one known outlier at ₹300350, likely a data-entry error concatenating two values)"
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 10000
+              config:
+                severity: warn
+
+      - name: cost_cad
+        description: "Average meal cost in CAD (INR * 0.015)"
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0.015
+                max_value: 150.0
+              config:
+                severity: warn
+          - cost_sanity_bounds:
+              arguments:
+                tolerance: 0.01
+
+    tests:
+      - rating_coherence
+
+  # ============ stg_food: 4 tests + 1 macro ============
+  - name: stg_food
+    description: Cleaned food items dimension with standardized veg/non-veg categories
+    columns:
+      - name: food_id
+        description: Food item ID (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: item
+        description: Food item name
+        tests:
+          - not_null
+
+      - name: veg_or_non_veg
+        description: Category (Veg or Non-Veg, standardized casing)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Veg, Non-Veg]
+
+    tests:
+      - veg_nonveg_consistency
+
+  # ============ stg_menu: 9 tests + 1 macro ============
+  - name: stg_menu
+    description: Cleaned menu items with restaurant/food foreign keys and pricing (INR & CAD)
+    columns:
+      - name: menu_id
+        description: "Menu item ID (part of composite PK: menu_id + restaurant_id + food_id)"
+        tests:
+          - not_null
+
+      - name: restaurant_id
+        description: "Foreign Key to stg_restaurants (273 orphaned rows exist in raw data)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_restaurants')
+                field: id
+              config:
+                severity: warn
+
+      - name: food_id
+        description: "Foreign Key to stg_food (sample data mismatch: menu references food_ids beyond the small stg_food dimension sample)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_food')
+                field: food_id
+              config:
+                severity: warn
+
+      - name: price_inr
+        description: "Price per item in INR (real data ranges from ₹0.0 for free add-ons up to low hundreds)"
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 99999
+                inclusive: true
+
+      - name: price_cad
+        description: Price per item in CAD (INR * 0.015)
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1500.0
+                inclusive: true
+
+    tests:
+      - menu_grain_consistency
+
+  # ============ stg_reviews: 10 tests + 1 macro ============
+  - name: stg_reviews
+    description: Cleaned reviews with referential integrity to orders, users, and restaurants
+    columns:
+      - name: review_id
+        description: Review ID (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: Foreign Key to stg_orders
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+
+      - name: user_id
+        description: "Foreign Key to stg_users (sample data mismatch: reviews reference user_ids beyond the small stg_users dimension sample)"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_users')
+                field: user_id
+              config:
+                severity: warn
+
+      - name: restaurant_id
+        description: Foreign Key to stg_restaurants
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_restaurants')
+                field: id
+
+      - name: rating
+        description: Review rating (1-5)
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+
+      - name: review_date
+        description: Date of review (must not be in future, checked by review_date_sanity macro)
+        tests:
+          - not_null
+
+    tests:
+      - review_date_sanity

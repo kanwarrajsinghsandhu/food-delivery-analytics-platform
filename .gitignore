@@ -46,3 +46,10 @@ jaffle_shop/
 
 # Local Claude Code settings (can accumulate secrets via recorded commands)
 .claude/settings.local.json
+
+
+
+# Personal reference / non-code content
+Markdowns for Instructions/
+Miscelleneaous Items/
+linkedin_carousel/

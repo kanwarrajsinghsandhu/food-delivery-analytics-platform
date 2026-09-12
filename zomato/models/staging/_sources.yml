@@ -1,20 +1,29 @@
+version: 2
+
 sources:
   - name: raw
+    description: Raw Zomato data tables (bronze layer)
     database: ZOMATO
-
     schema: RAW
-    tables: 
-      - name: restaurants
-        description: "This table contains the raw data of restaurants from Zomato."
-      - name: users
-        description: "This table contains the raw data of users from Zomato."
-      - name: food
-        description: "This table contains the raw data of food items from Zomato."
-      - name: menu
-        description: "This table contains the raw data of menus from Zomato."
-      - name: orders
-        description: "This table contains the raw data of orders from Zomato."
-      - name: order_items
-        description: "This table contains the raw data of order items from Zomato."
-      - name: reviews
-        description: "This table contains the raw data of reviews from Zomato."
+
+    tables:
+      - name: RESTAURANTS
+        description: Raw restaurant dimension data (ID, name, city, rating, cost, cuisine, etc.)
+
+      - name: USERS
+        description: Raw user dimension data (ID, name, email, age, gender, income, education, etc.) — contains PII
+
+      - name: FOOD
+        description: Raw food items dimension (F_ID, item name, veg/non-veg)
+
+      - name: MENU
+        description: Raw menu items (R_ID, F_ID, cuisine, price)
+
+      - name: ORDERS
+        description: Raw orders fact table (order_id, user_id, restaurant_id, timestamp, amount, status, etc.)
+
+      - name: ORDER_ITEMS
+        description: Raw order line items (order_item_id, order_id, restaurant_id, food_id, price, quantity, line_amount)
+
+      - name: REVIEWS
+        description: Raw reviews (review_id, order_id, user_id, restaurant_id, rating, comment, review_date)
