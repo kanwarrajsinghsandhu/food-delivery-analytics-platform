@@ -1,0 +1,143 @@
+version: 2
+
+models:
+  - name: fct_order_sales
+    description: >
+      Atomic Gold fact table — one row per order, carrying all commercial measures
+      (INR + CAD) plus fulfillment and payment attributes. Foundation for all
+      order-derived marts (executive summary, restaurant performance, retention).
+      order_status has exactly 3 values in source data: Delivered, Cancelled, Refunded.
+    columns:
+      - name: order_id
+        description: Unique order identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: >
+          Foreign Key to dim_customer (sample data keyspace mismatch: dim_customer only has
+          90,462 rows after stg_users' education filter, out of 100,000 raw users, while orders
+          reference the full 100K user keyspace — same known pattern as stg_menu/stg_reviews FKs)
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+              config:
+                severity: warn
+
+      - name: restaurant_id
+        description: Foreign Key to stg_restaurants
+        tests:
+          - not_null
+
+      - name: order_status
+        description: Raw order outcome status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Delivered', 'Cancelled', 'Refunded']
+
+      - name: is_delivered
+        description: True when order_status = 'Delivered'
+
+      - name: is_cancelled
+        description: True when order_status = 'Cancelled'
+
+      - name: is_refunded
+        description: True when order_status = 'Refunded'
+
+      - name: is_discounted
+        description: True when discount_inr > 0
+
+      - name: sales_amount_inr
+        description: Final order amount charged to customer, in INR (subtotal - discount + delivery_fee + gst)
+        tests:
+          - not_null
+
+      - name: delivery_time_min
+        description: Minutes from order placement to delivery. Null for non-delivered orders.
+
+      - name: is_late_delivery_proxy
+        description: >
+          PROXY METRIC — no ETA/promised-delivery-time field exists in source data, so this
+          flags delivery_time_min > 30 minutes as an absolute-threshold stand-in for the real
+          dynamic-ETA SLA-breach definition Zomato actually uses. Null when order wasn't delivered.
+
+  - name: fct_order_items
+    description: >
+      Atomic Gold fact table — one row per order line item. Foundation for menu/product-level
+      marts (food performance, cuisine analysis). order_date and is_delivered are denormalized
+      from the parent order for convenient time/status slicing without joining fct_order_sales.
+    columns:
+      - name: order_item_id
+        description: Unique order line item identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: Foreign Key to fct_order_sales
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_order_sales')
+                field: order_id
+
+      - name: restaurant_id
+        description: Foreign Key to stg_restaurants
+        tests:
+          - not_null
+
+      - name: food_id
+        description: >
+          Foreign Key to stg_food (sample data mismatch: line items reference food_ids beyond
+          the small stg_food dimension sample — see stg_menu's same known issue, kept as warn)
+        tests:
+          - not_null
+
+      - name: order_date
+        description: Date the parent order was placed (denormalized from stg_orders)
+
+      - name: is_delivered
+        description: True when the parent order's status = 'Delivered' (denormalized from stg_orders)
+
+      - name: quantity
+        description: Units of this food item ordered in this line item
+
+      - name: line_amount_inr
+        description: Line-item total in INR (unit_price_inr × quantity, within documented tolerance — see line_items_arithmetic test)
+        tests:
+          - not_null
+
+  - name: dim_customer
+    description: >
+      Gold customer dimension — demographic attributes only, renamed key (customer_id) to match
+      fct_order_sales/fct_order_items for joins. Order-derived metrics (recency/frequency/monetary,
+      churn/retention segmentation) live in mart_customer_rfm, not here.
+    tests:
+      - no_pii_exposure
+    columns:
+      - name: customer_id
+        description: Unique customer identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: age
+        description: Customer age in years
+        tests:
+          - not_null
+
+      - name: gender
+        description: Gender (Male, Female, Other)
+        tests:
+          - not_null
+
+      - name: education
+        description: Education level (Graduate, Post Graduate, Undergraduate, High School)
+        tests:
+          - not_null

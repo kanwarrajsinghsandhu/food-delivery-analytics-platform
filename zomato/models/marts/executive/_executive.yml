@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: mart_executive_summary
+    description: >
+      CXO dashboard mart (Case Study 1) — one row per calendar day with headline platform KPIs:
+      DAU, calendar-month MAU, GMV/AOV (delivered orders only), delivery time, an NPS proxy built
+      from star ratings, and month-over-month retention/churn. See model SQL for full methodology
+      notes on each proxy/business-rule choice (MAU definition, GMV scope, NPS mapping, retention lag).
+    columns:
+      - name: order_date
+        description: Calendar day (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: daily_active_users
+        description: Distinct customers who placed an order this calendar day (DAU)
+        tests:
+          - not_null
+
+      - name: monthly_active_users
+        description: >
+          PROXY METRIC — distinct customers active in the calendar month containing this day
+          (repeated across all days in that month), not a rolling 30-day window.
+
+      - name: gmv_inr
+        description: Gross Merchandise Value in INR — sum of sales_amount_inr for delivered orders only this day
+        tests:
+          - not_null
+
+      - name: aov_inr
+        description: Average Order Value in INR — gmv_inr / delivered_orders this day. Null on days with zero delivered orders.
+
+      - name: nps_score_proxy
+        description: >
+          PROXY METRIC — built from 1-5 star customer_rating, not a real 0-10 recommend-likelihood
+          question. (promoters[5] - detractors[<=3]) / rated_orders * 100. Null on days with zero rated orders.
+
+      - name: monthly_retention_rate
+        description: >
+          Of customers active in the prior calendar month, the % who also ordered this month.
+          Repeated across all days in the month. Null for the first month in the dataset.
+
+      - name: monthly_churn_rate
+        description: 1 - monthly_retention_rate. Null for the first month in the dataset.
