@@ -1,0 +1,398 @@
+version: 2
+
+models:
+  - name: mart_customer_rfm
+    description: >
+      Gold customer segmentation mart — RFM (Recency, Frequency, Monetary) scoring and segment labels.
+      One row per customer. R/F/M are quintile scores (1-5, 5=best). Segment labels (Champions, Loyal, At-Risk, Lost, etc.)
+      are derived from the 3-digit RFM score to bucket customers into actionable retention/acquisition strategies.
+      Only counts delivered orders (ignores cancelled/refunded). Built on int_customer_order_sequence.
+      Data quality: the dataset spans 2024-01-01 to 2026-06-30 (~2.5 years, 10M orders) — recency_days is
+      anchored to the dataset's own max(order_date), not current_date(), so it stays stable regardless of
+      when this pipeline is rerun (see recency_days column note below).
+
+    columns:
+      - name: customer_id
+        description: Unique customer identifier (Primary Key) from dim_customer
+        tests:
+          - unique
+          - not_null
+
+      - name: first_order_date
+        description: Date of customer's first delivered order
+        tests:
+          - not_null
+
+      - name: last_order_date
+        description: Date of customer's most recent delivered order
+        tests:
+          - not_null
+
+      - name: recency_days
+        description: >
+          Days between last delivered order and the dataset's own max(order_date) (recency_anchor_date
+          from int_customer_order_sequence) — not current_date(). Lower = more recent = better. Anchoring
+          to the dataset's own timeline keeps this stable across reruns instead of drifting by 1 day every
+          day this pipeline runs without new data landing.
+        tests:
+          - not_null
+
+      - name: frequency_orders
+        description: Total count of delivered orders placed by this customer
+        tests:
+          - not_null
+
+      - name: monetary_value_cad
+        description: Total lifetime revenue from this customer in CAD (sum of sales_amount_cad across all delivered orders)
+        tests:
+          - not_null
+
+      - name: r_score
+        description: Recency quintile score (1-5). 5 = most recent orders, 1 = oldest. Inverted from raw recency days.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+
+      - name: f_score
+        description: Frequency quintile score (1-5). 5 = most orders, 1 = fewest orders.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+
+      - name: m_score
+        description: Monetary quintile score (1-5). 5 = highest lifetime value, 1 = lowest.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+
+      - name: rfm_segment
+        description: >
+          3-digit RFM code (e.g., "555" = champion, "111" = lost). Formed by concatenating r_score + f_score + m_score.
+          Segment values range from 111 (worst) to 555 (best).
+        tests:
+          - not_null
+
+      - name: segment_label
+        description: >
+          Human-readable segment name derived from RFM combination.
+          Values: Champions (555+), Loyal Customers (high R/F/M), Potential Loyalists, Valuable, At Risk (low R, high F),
+          Needs Attention, Lost (low R), Other.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Champions', 'Loyal Customers', 'Potential Loyalists', 'Valuable', 'At Risk', 'Needs Attention', 'Lost', 'Other']
+
+
+  - name: mart_retention_diagnostic
+    description: >
+      Gold retention diagnostic — the observed association between first-order experience (delivery speed,
+      rating, discount) and repeat ordering behavior. One row per customer. Built on
+      int_customer_order_sequence. Key question: Is a faster/higher-rated first order associated with a
+      second order within 30 days?
+
+      OBSERVATIONAL, NOT CAUSAL: no controls for confounders (city, cuisine, restaurant, customer segment,
+      etc.) — a bucket with a higher repeat rate is a hypothesis for Phase B's multivariate analysis to
+      test, not a finding on its own.
+
+      Data quality caveats:
+      - Delivery time is absolute threshold (>30 min = late proxy), not dynamic SLA vs. promised ETA.
+      - Dataset spans 2024-01-01 to 2026-06-30 (~2.5 years, 10M orders) — repeat windows are not compressed.
+      - Discount association may be selection bias (discount-seeking customers have different baseline conversion).
+      - Rating is customer-provided subjective rating, not objective delivery quality measurement.
+
+    columns:
+      - name: customer_id
+        description: Unique customer identifier (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: first_order_id
+        description: Order ID of this customer's first delivered order
+        tests:
+          - not_null
+
+      - name: first_order_date
+        description: Date of customer's first delivered order
+        tests:
+          - not_null
+
+      - name: acquisition_cohort_month
+        description: Calendar month of this customer's first delivered order — passthrough from int_customer_order_sequence for slicing by cohort
+        tests:
+          - not_null
+
+      - name: first_order_delivery_time
+        description: Minutes from order placement to delivery on the first order. Null if first order not delivered.
+
+      - name: delivery_speed_bucket
+        description: >
+          Categorized delivery speed on first order: 'Very Fast (0-20 min)', 'Fast (20-30 min)',
+          'Moderate (30-40 min)', or 'Slow (40+ min)'. Used to compare repeat-ordering rates across
+          buckets — an observed association, not a controlled/causal comparison.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Very Fast (0-20 min)', 'Fast (20-30 min)', 'Moderate (30-40 min)', 'Slow (40+ min)']
+
+      - name: first_order_rating
+        description: Customer-provided star rating (1-5) on their first order
+
+      - name: rating_bucket
+        description: >
+          Categorized first-order rating: 'Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)'.
+          Used to compare repeat-ordering rates across buckets — an observed association, not a
+          controlled/causal comparison.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)']
+
+      - name: first_order_discount_cad
+        description: Discount amount given on the first order, in CAD (0 if no discount)
+
+      - name: did_use_discount_on_first_order
+        description: Boolean flag — True if first_order_discount_cad > 0
+
+      - name: did_reorder
+        description: >
+          Boolean — True if customer placed at least 2 delivered orders (i.e., a second order exists at any time).
+          Does not enforce the 30-day window; see did_reorder_within_30d for time-bounded retention.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+      - name: did_reorder_within_30d
+        description: >
+          Boolean — True if customer placed a second delivered order within 30 days of their first order.
+          Primary retention metric for this analysis. Null dates will result in False.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+      - name: second_order_date
+        description: Date of customer's second order. Null if they never placed a second order.
+
+      - name: days_to_second_order
+        description: Days elapsed between first and second order. Null if customer never reordered.
+
+      - name: repeat_order_count
+        description: Total number of orders placed after the first order (0 if customer never reordered)
+        tests:
+          - not_null
+
+      - name: repeat_aov_cad
+        description: >
+          Average order value (in CAD) across all repeat orders (orders after the first). Null if customer never reordered.
+          Useful for understanding if repeat customers have different purchasing behavior.
+
+
+  - name: mart_cohort_retention
+    description: >
+      Classic cohort-retention curve — for each customer acquisition cohort (month of first delivered
+      order), what % of that cohort placed at least one delivered order in each subsequent month. Grain
+      is acquisition_cohort_month x period_number. Feeds the cohort-retention heatmap in the BI layer
+      (rows = cohort month, columns = period, values = retention_rate). Built on int_customer_order_sequence.
+      No date spine: a (cohort, period) combination with zero active customers produces no row, same
+      simplification already documented in mart_executive_summary.
+
+    columns:
+      - name: acquisition_cohort_month
+        description: Calendar month this cohort of customers placed their first delivered order
+        tests:
+          - not_null
+
+      - name: period_number
+        description: Months elapsed since acquisition_cohort_month (0 = acquisition month itself)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: true
+
+      - name: cohort_size
+        description: Distinct customers whose first delivered order fell in this cohort month
+        tests:
+          - not_null
+
+      - name: active_customers
+        description: Distinct customers from this cohort with at least one delivered order in this period
+        tests:
+          - not_null
+
+      - name: retention_rate
+        description: active_customers / cohort_size. 1.0 at period_number = 0 by construction.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - acquisition_cohort_month
+              - period_number
+      - cohort_size_reconciles
+
+
+  - name: mart_activation
+    description: >
+      First-to-second-order activation funnel by acquisition cohort — how many first-time customers
+      come back, how fast, and at what value. Grain is acquisition_cohort_month. Narrower than
+      mart_cohort_retention (which tracks any repeat order per period); this tracks specifically the
+      second order. Built on int_customer_order_sequence. Customers who never place a second order still
+      count in cohort_size and correctly pull the conversion percentages down.
+
+    columns:
+      - name: acquisition_cohort_month
+        description: Calendar month this cohort of customers placed their first delivered order (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: cohort_size
+        description: Distinct customers acquired (first delivered order) in this cohort month
+        tests:
+          - not_null
+
+      - name: pct_2nd_order_within_7d
+        description: Share of the cohort whose second delivered order landed within 7 days of their first
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: pct_2nd_order_within_14d
+        description: Share of the cohort whose second delivered order landed within 14 days of their first
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: pct_2nd_order_within_30d
+        description: Share of the cohort whose second delivered order landed within 30 days of their first
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: median_days_to_2nd_order
+        description: Median days between first and second order, among customers who reordered. Null if nobody in the cohort reordered.
+
+      - name: second_order_aov_cad
+        description: Average value (CAD) of the cohort's second orders. Null if nobody in the cohort reordered.
+
+      - name: repeat_restaurant_rate
+        description: >
+          Of customers who placed a second order, the share whose second order was at the same restaurant
+          as their first. Null if nobody in the cohort reordered.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+
+  - name: mart_basket_discount
+    description: >
+      Discount-dependency diagnostic — are discount-heavy customers actually valuable/retained, or is the
+      platform subsidizing one-time, price-driven orders? Grain is customer_id. Built on
+      int_customer_order_sequence, joined to mart_customer_rfm and mart_retention_diagnostic for value/
+      retention comparison across discount-dependency segments.
+
+      OBSERVATIONAL, NOT CAUSAL: discount usage is a customer choice, not a randomized treatment — any
+      value/retention gap here may reflect selection bias (price-sensitive customers behave differently
+      regardless of discounts) rather than a causal effect of discounting. Same caveat as
+      mart_retention_diagnostic; multivariate control is Phase B's job.
+
+    columns:
+      - name: customer_id
+        description: >
+          Unique customer identifier (Primary Key). Carries the full order-side keyspace (~100K) --
+          see model header note on the known gap vs. dim_customer's ~90K (education-filtered) keyspace.
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+              config:
+                severity: warn
+
+      - name: total_orders
+        description: Total delivered orders placed by this customer across their full order history
+        tests:
+          - not_null
+
+      - name: discounted_orders
+        description: Count of this customer's delivered orders that had a non-zero discount
+        tests:
+          - not_null
+
+      - name: pct_orders_discounted
+        description: discounted_orders / total_orders
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
+
+      - name: total_discount_cad
+        description: Sum of discount_cad across this customer's full delivered order history
+
+      - name: avg_discount_cad_when_used
+        description: Average discount amount (CAD) on orders where a discount was actually used. Null if customer never used a discount.
+
+      - name: discount_dependency_segment
+        description: >
+          'Discount-Reliant' (>=50% of orders discounted), 'Occasional Discount User' (some but <50%),
+          or 'Full-Price' (never discounted). Threshold is a starting point, tunable once the real
+          distribution is visible in the BI layer.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Discount-Reliant', 'Occasional Discount User', 'Full-Price']
+
+      - name: monetary_value_cad
+        description: Lifetime revenue (CAD) from mart_customer_rfm, for comparing value across discount-dependency segments
+
+      - name: frequency_orders
+        description: Total delivered order count from mart_customer_rfm
+
+      - name: rfm_segment_label
+        description: RFM segment_label from mart_customer_rfm, for cross-tabbing discount dependency against value tier
+
+      - name: did_reorder_within_30d
+        description: 30-day repeat flag from mart_retention_diagnostic, for comparing retention across discount-dependency segments
