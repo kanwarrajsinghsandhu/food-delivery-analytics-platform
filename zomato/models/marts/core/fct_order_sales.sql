@@ -5,6 +5,8 @@
 -- is_late_delivery_proxy: no ETA/promised-delivery-time field exists in source data, so this is an
 --   absolute-threshold proxy (delivery_time_min > 30), not the real dynamic-ETA SLA-breach definition
 
+{{ config(schema='MARTS') }}
+
 with orders as (
     select * from {{ ref('stg_orders') }}
 ),

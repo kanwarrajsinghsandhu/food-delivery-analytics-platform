@@ -18,6 +18,8 @@
 --   - No explicit date-spine: days are derived from actual order activity, not a generated calendar.
 --     Given ~10M orders across ~2.5 years, gap days are effectively not expected in this dataset.
 
+{{ config(schema='MARTS') }}
+
 with orders as (
     select * from {{ ref('fct_order_sales') }}
 ),

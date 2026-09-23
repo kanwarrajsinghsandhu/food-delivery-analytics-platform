@@ -18,7 +18,7 @@ models:
     +static_analysis: strict
     staging:
       +materialized: view
-      # Uses profile default schema: STAGING
+      # Uses profile default schema: DEV
     marts:
       +materialized: table
       +schema: MARTS
