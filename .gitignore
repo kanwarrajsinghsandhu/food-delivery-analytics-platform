@@ -53,3 +53,6 @@ jaffle_shop/
 Markdowns for Instructions/
 Miscelleneaous Items/
 linkedin_carousel/
+
+# Data generator output (regenerate with data_generator/generate.py)
+data_generator/output/

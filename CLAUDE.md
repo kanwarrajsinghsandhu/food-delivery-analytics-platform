@@ -4,11 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository scope
 
-The only tracked project is `zomato/`, a dbt project. Everything else at the repo root is gitignored and not part of the codebase proper:
-- `zomato_engineering_raw_data/` — raw source CSVs (loaded into Snowflake `ZOMATO.RAW` outside of dbt, e.g. via `Miscelleneaous Items/Upload_To_Blob.py` → Azure Data Lake → Snowflake `COPY INTO`)
+The tracked projects are `zomato/` (the dbt project) and `data_generator/` (the order-data generator, see below). Everything else at the repo root is gitignored and not part of the codebase proper:
+- `zomato_engineering_raw_data/` — raw source CSVs. The original tutorial data lives in Snowflake `ZOMATO.RAW` (loaded via Azure Data Lake → `COPY INTO`).
+- `data_generator/output/` — generated CSVs (gitignored; regenerate with `data_generator/generate.py`)
 - `jaffle_shop/` — the stock dbt-fusion sandbox/tutorial project, unrelated to Zomato
 - `Markdowns for Instructions/`, `Miscelleneaous Items/`, `linkedin_carousel/` — personal planning notes and LinkedIn content, not project documentation
-- `.venv/` — a Python venv (used for the `Upload_To_Blob.py` script), not for dbt itself
+- `.venv/` — a Python venv for `data_generator/` (numpy/pandas, `snowflake-connector-python`), not for dbt itself
+
+### Source data: RAW_V2 (default) vs RAW
+dbt's `raw` source schema is `{{ var('raw_schema', 'RAW_V2') }}`. `RAW_V2` holds **calibrated synthetic** ORDERS / ORDER_ITEMS / REVIEWS from `data_generator/` (realistic acquisition, churn, resurrection, seasonality, price drift), with the real dimension tables cloned from `RAW`. `RAW` keeps the original tutorial data, whose behaviour is flat and unrealistic; build on it with `--vars '{raw_schema: RAW}'` only for comparison. Orders on RAW_V2 start 2023-07-01 (a 6-month burn-in); the reporting window is 2024-01 → 2026-06. See `data_generator/README.md` for parameters, sources, the heavy-user-panel caveat, and planted effects — order-level trends are properties of the simulation, not business findings.
 
 All dbt commands below assume `cd zomato` first.
 
@@ -36,6 +40,7 @@ dbt build --select +fct_order_sales          # model and everything upstream
 dbt test --select stg_orders,test_type:singular
 dbt test --select order_total_reconciles     # by custom generic test name
 dbt build --select tag:canary                # canary DQ-proof tests (excluded from normal builds)
+dbt build --select tag:generator             # generator ground-truth check (RAW_V2 only)
 
 dbt docs generate && dbt docs serve
 dbt clean                                    # wipe target/ and dbt_packages/

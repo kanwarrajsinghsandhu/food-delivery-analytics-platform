@@ -1,0 +1,124 @@
+# Order generator parameters — calibrated synthetic order behaviour on top of the real
+# restaurant/menu listings and the 100K-user panel. Every value is tagged with its basis:
+#   [source]     public disclosure (URL in README.md)
+#   [observed]   taken from the original tutorial data, where it was already plausible
+#   [assumption] a modelling choice; documented so it can be challenged
+
+seed: 20260612
+
+calendar:
+  history_start: "2023-07-01"   # burn-in start: existing customers get their first order here [assumption]
+  report_start: "2024-01-01"    # reporting window used by dashboards
+  end: "2026-06-30"
+
+volume:
+  target_orders_in_report_window: 10_000_000   # user decision; implies a heavy-user panel
+  # Swiggy FY26 platform frequency was 4.07 orders / transacting user / month [source].
+  # Hitting 10M with a fixed 100K panel needs ~6-8, so this panel is documented as heavy users.
+
+acquisition:
+  existing_base_share: 0.55      # share of the 100K already customers before 2024 (first order in burn-in) [assumption]
+  existing_base_tenure_months: [6, 36]   # prior, unobserved tenure of existing customers -> already past the steep early churn [assumption]
+  existing_first_order_month_weights: [0.40, 0.20, 0.14, 0.10, 0.09, 0.07]   # first observed order across Jul-Dec 2023 [assumption]
+  new_arrival_yoy_growth: 0.25   # monthly new-customer arrivals grow ~25%/yr [assumption, between Zomato +21% and Swiggy +33% MTU YoY [source]]
+  festive_arrival_uplift: 1.15   # Oct-Dec acquisition bump [assumption]
+
+lifecycle:
+  # Monthly chance an engaged customer lapses, by months since acquisition:
+  #   hazard(t) = floor + (first - floor) * exp(-(t - 1) / decay)
+  lapse_hazard_first: 0.25       # [assumption] — standard steep early cohort decay
+  lapse_hazard_floor: 0.03       # [assumption]
+  lapse_hazard_decay_months: 3.0
+  resurrection_prob: 0.08        # monthly chance a lapsed customer comes back [assumption]
+  festive_resurrection_uplift: 1.5
+  order_rate_gamma_shape: 1.3    # customer-to-customer spread in order rate (heavy tail) [assumption]
+  occupation_rate_multiplier:    # [assumption]
+    Student: 1.15
+    Employee: 1.0
+    Self Employeed: 0.95
+    House wife: 0.85
+  frequency_trend_per_year: -0.03   # frequency eases as the base grows, as in Swiggy FY24->FY26 [source]
+
+# Effects deliberately planted so the marts can be checked against a known truth.
+# These are NOT business findings — see README.md.
+planted_effects:
+  slow_first_delivery_minutes: 40      # matches mart_retention_diagnostic's 'Slow (40+ min)' bucket
+  slow_first_lapse_multiplier: 1.8     # month-1 lapse hazard x1.8
+  slow_first_early_order_multiplier: 0.5
+  poor_first_rating_threshold: 3       # rating < 3 = mart's 'Poor (<3.0)' bucket
+  poor_first_lapse_multiplier: 1.5
+  discount_acquired_lapse_multiplier: 1.3   # applies at every tenure
+
+seasonality:   # demand multiplier by calendar month [assumption: festive Oct-Dec peak, monsoon Jul-Sep dip]
+  1: 1.00
+  2: 0.95
+  3: 1.00
+  4: 0.98
+  5: 1.02
+  6: 1.00
+  7: 0.93
+  8: 0.92
+  9: 0.95
+  10: 1.08
+  11: 1.12
+  12: 1.10
+weekend_uplift: 1.25
+
+hour_weights:   # [observed] lunch and dinner peaks from the original data
+  [0.004, 0.002, 0.001, 0.001, 0.001, 0.002, 0.006, 0.016, 0.025, 0.028, 0.032, 0.045,
+   0.091, 0.097, 0.064, 0.036, 0.033, 0.045, 0.077, 0.112, 0.119, 0.091, 0.051, 0.021]
+
+restaurants:
+  # Popularity weight by Swiggy rating-count tier, so a minority of restaurants take most orders [assumption]
+  popularity_by_rating_count:
+    "Too Few Ratings": 1
+    "20+ ratings": 4
+    "50+ ratings": 8
+    "100+ ratings": 15
+    "500+ ratings": 40
+    "1K+ ratings": 80
+    "5K+ ratings": 200
+    "10K+ ratings": 300
+  favourites_per_customer: 3
+  favourite_order_share: 0.40
+  out_of_home_city_share: 0.05
+
+basket:
+  items_count_probs: {1: 0.30, 2: 0.34, 3: 0.20, 4: 0.10, 5: 0.04, 6: 0.02}   # [observed]
+  quantity_probs: {1: 0.82, 2: 0.14, 3: 0.04}                               # [observed]
+  menu_price_min: 10
+  menu_price_max: 2000
+  price_inflation_per_year: 0.055   # [assumption, in line with Indian food CPI]
+
+pricing:
+  gst_rate: 0.05                                                        # [observed] 5% on subtotal
+  delivery_fee_values: [0, 15, 20, 25, 35, 49]                          # [observed]
+  delivery_fee_probs: [0.25, 0.20, 0.20, 0.15, 0.12, 0.08]
+  discount_prob_first_order: 0.70     # [assumption] acquisition offers
+  discount_prob_comeback_order: 0.60  # [assumption] win-back offers
+  discount_prob_other: 0.30           # [assumption] gives ~35% overall, as [observed]
+  discount_pct_range: [0.10, 0.40]
+  payment_methods: [UPI, Card, Wallet, COD, NetBanking]                 # [observed]
+  payment_probs: [0.46, 0.20, 0.15, 0.14, 0.05]
+
+operations:
+  cancel_rate_base: 0.055        # [observed ~6%], now varying by city and month
+  cancel_city_sd: 0.25           # lognormal spread of city cancel multipliers
+  monsoon_cancel_multiplier: 1.3 # Jul-Sep
+  refund_rate: 0.025             # [observed]
+  delivery_base_minutes_range: [24, 34]   # per-city base delivery time [assumption]
+  peak_hour_extra_minutes: 4
+  monsoon_extra_minutes: 5
+  weekend_extra_minutes: 2
+  delivery_noise_sd: 8
+  delivery_min: 8
+  delivery_max: 90
+  rated_share_of_delivered: 0.70   # [observed]
+  rating_intercept: 4.4            # rating = intercept - slope*(minutes - 30) + noise
+  rating_slope_per_minute: 0.04
+  rating_noise_sd: 0.8
+
+reviews:
+  review_share_of_rated: 0.05      # [observed ~4.7%]
+  extreme_rating_review_multiplier: 2.0   # 1-2 and 5 star orders are reviewed more often [assumption]
+  max_lag_days: 3

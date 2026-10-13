@@ -1,0 +1,18 @@
+version: 2
+
+seeds:
+  - name: generator_ground_truth
+    description: >
+      Written by data_generator/generate.py, NOT real data. For each first-order experience bucket
+      (delivery speed, rating, first-order discount), the number of customers and how many placed a
+      second delivered order within 30 days -- computed in Python straight from the generated orders,
+      using mart_retention_diagnostic's exact bucket rules. Used only by
+      tests/generator/assert_planted_effects_recovered.sql to prove the dbt pipeline reproduces what
+      the generator actually produced. Only meaningful when building on RAW_V2.
+    config:
+      tags: ['generator']
+      column_types:
+        dimension: string
+        bucket: string
+        customers: integer
+        reorders_within_30d: integer

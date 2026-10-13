@@ -1,0 +1,12 @@
+dimension,bucket,customers,reorders_within_30d
+delivery_speed_bucket,Fast (20-30 min),28268,23898
+delivery_speed_bucket,Moderate (30-40 min),40759,34604
+delivery_speed_bucket,Slow (40+ min),23836,18816
+delivery_speed_bucket,Very Fast (0-20 min),7137,6006
+rating_bucket,Excellent (4.5-5.0),26848,22561
+rating_bucket,Fair (3.0-4.0),12243,10096
+rating_bucket,Good (4.0-4.5),29192,24372
+rating_bucket,Poor (<3.0),1696,1344
+rating_bucket,Unrated,30021,24951
+did_use_discount_on_first_order,false,29989,25169
+did_use_discount_on_first_order,true,70011,58155

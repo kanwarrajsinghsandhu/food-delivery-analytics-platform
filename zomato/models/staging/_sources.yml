@@ -4,7 +4,9 @@ sources:
   - name: raw
     description: Raw Zomato data tables (bronze layer)
     database: ZOMATO
-    schema: RAW
+    # RAW_V2 (default) = calibrated synthetic orders from data_generator/, same dimensions (cloned).
+    # RAW = original tutorial data, kept for comparison: dbt build --vars '{raw_schema: RAW}'
+    schema: "{{ var('raw_schema', 'RAW_V2') }}"
 
     tables:
       - name: RESTAURANTS
