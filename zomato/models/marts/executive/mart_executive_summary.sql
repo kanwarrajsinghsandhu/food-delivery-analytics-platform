@@ -16,7 +16,7 @@
 --     question. Mapping: 5=promoter, 4=passive, <=3=detractor. Score = (promoters - detractors) /
 --     rated_orders * 100. Null on days with zero rated orders.
 --   - No explicit date-spine: days are derived from actual order activity, not a generated calendar.
---     Given ~10M orders across ~2.5 years, gap days are effectively not expected in this dataset.
+--     Given ~11.4M orders across ~3 years, gap days are effectively not expected in this dataset.
 
 {{ config(schema='MARTS') }}
 

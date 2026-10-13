@@ -150,6 +150,17 @@ models:
         tests:
           - not_null
 
+      - name: acquisition_city
+        description: >
+          City of this customer's first delivered order, repeated on every row for the customer. The fixed
+          city attribution used by city-filtered lifecycle marts (mart_customer_monthly_status,
+          mart_growth_accounting_monthly) so customer counts stay additive across cities.
+        tests:
+          - not_null
+
+      - name: city
+        description: City of this specific order's restaurant (per-order, can differ from acquisition_city)
+
       - name: recency_anchor_date
         description: >
           max(order_date) across all delivered orders in the dataset -- a single dataset-wide value,
@@ -193,3 +204,49 @@ models:
         description: Education level (Graduate, Post Graduate, Undergraduate, High School)
         tests:
           - not_null
+
+  - name: dim_date
+    description: >
+      Gold calendar dimension, one row per day from the first to the last order_date in fct_order_sales
+      (no gaps). Exists so the BI layer (Power BI) has a proper marked date table for month/year slicers
+      and MoM/YoY time intelligence, instead of deriving dates from fact rows.
+    columns:
+      - name: date_day
+        description: Calendar date (Primary Key)
+        tests:
+          - unique
+          - not_null
+
+      - name: month_start
+        description: First day of the calendar month -- joins to activity_month in the monthly lifecycle marts
+        tests:
+          - not_null
+
+  - name: bridge_order_cuisine
+    description: >
+      Gold bridge table, one row per order per cuisine tag. fct_order_sales.cuisine is a comma-separated
+      multi-tag string ("North Indian, Chinese"), so filtering on it directly either misses orders or
+      double-counts them. This splits it once, the same way the Streamlit dashboard does at query time.
+      An order with N tags appears N times here -- never sum order measures through this table without
+      a distinct on order_id.
+    columns:
+      - name: order_id
+        description: Foreign Key to fct_order_sales
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_order_sales')
+                field: order_id
+
+      - name: cuisine_tag
+        description: A single trimmed cuisine tag
+        tests:
+          - not_null
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - order_id
+              - cuisine_tag

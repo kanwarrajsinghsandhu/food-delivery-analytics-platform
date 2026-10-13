@@ -8,6 +8,10 @@
 -- recency_anchor_date is the dataset's own max(order_date), not current_date() -- keeps recency-based
 --   calcs (see mart_customer_rfm) stable across reruns of a static/historical dataset instead of
 --   drifting by 1 day every time the pipeline runs without new data landing.
+-- acquisition_city is the city of the customer's first delivered order -- the single, fixed city each
+--   customer is attributed to for city-filtered lifecycle metrics (mart_customer_monthly_status /
+--   mart_growth_accounting_monthly). Fixed attribution keeps customer counts additive across cities;
+--   `city` is still the per-order city for anything order-level.
 
 {{ config(schema='MARTS') }}
 
@@ -28,6 +32,7 @@ sequenced as (
         o.order_id,
         o.order_date,
         o.restaurant_id,
+        o.city,
         o.cuisine,
         o.sales_amount_cad,
         o.delivery_time_min,
@@ -41,6 +46,8 @@ sequenced as (
             as first_order_date,
         first_value(o.restaurant_id) over (partition by o.customer_id order by o.order_date, o.order_id)
             as first_order_restaurant_id,
+        first_value(o.city) over (partition by o.customer_id order by o.order_date, o.order_id)
+            as acquisition_city,
         lag(o.order_date) over (partition by o.customer_id order by o.order_date, o.order_id)
             as prev_order_date
 
@@ -54,12 +61,14 @@ select
     s.order_sequence,
     s.first_order_date,
     date_trunc('month', s.first_order_date)::date as acquisition_cohort_month,
+    s.acquisition_city,
     b.recency_anchor_date,
 
     datediff(day, s.first_order_date, s.order_date) as days_since_first_order,
     datediff(day, s.prev_order_date, s.order_date) as days_since_prev_order,
 
     s.restaurant_id,
+    s.city,
     s.cuisine,
     (s.restaurant_id = s.first_order_restaurant_id) as is_same_restaurant_as_first_order,
 

@@ -7,7 +7,8 @@ models:
       One row per customer. R/F/M are quintile scores (1-5, 5=best). Segment labels (Champions, Loyal, At-Risk, Lost, etc.)
       are derived from the 3-digit RFM score to bucket customers into actionable retention/acquisition strategies.
       Only counts delivered orders (ignores cancelled/refunded). Built on int_customer_order_sequence.
-      Data quality: the dataset spans 2024-01-01 to 2026-06-30 (~2.5 years, 10M orders) — recency_days is
+      Data quality: orders span 2023-07-01 to 2026-06-30 (Jul-Dec 2023 is a generator burn-in; reporting window
+      2024-01 to 2026-06 holds ~10M of ~11.4M orders) — recency_days is
       anchored to the dataset's own max(order_date), not current_date(), so it stays stable regardless of
       when this pipeline is rerun (see recency_days column note below).
 
@@ -103,7 +104,7 @@ models:
 
       Data quality caveats:
       - Delivery time is absolute threshold (>30 min = late proxy), not dynamic SLA vs. promised ETA.
-      - Dataset spans 2024-01-01 to 2026-06-30 (~2.5 years, 10M orders) — repeat windows are not compressed.
+      - Orders span 2023-07-01 to 2026-06-30 (~3 years incl. burn-in, ~11.4M orders) — repeat windows are not compressed.
       - Discount association may be selection bias (discount-seeking customers have different baseline conversion).
       - Rating is customer-provided subjective rating, not objective delivery quality measurement.
 
@@ -148,14 +149,15 @@ models:
 
       - name: rating_bucket
         description: >
-          Categorized first-order rating: 'Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)'.
+          Categorized first-order rating: 'Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)',
+          or 'Unrated' when the customer left no rating on their first order.
           Used to compare repeat-ordering rates across buckets — an observed association, not a
           controlled/causal comparison.
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)']
+                values: ['Excellent (4.5-5.0)', 'Good (4.0-4.5)', 'Fair (3.0-4.0)', 'Poor (<3.0)', 'Unrated']
 
       - name: first_order_discount_cad
         description: Discount amount given on the first order, in CAD (0 if no discount)
@@ -396,3 +398,99 @@ models:
 
       - name: did_reorder_within_30d
         description: 30-day repeat flag from mart_retention_diagnostic, for comparing retention across discount-dependency segments
+
+  - name: mart_customer_monthly_status
+    description: >
+      Customer lifecycle fact for growth accounting -- one row per customer per month from their acquisition
+      month to the dataset's last month, with lifecycle_status (new / retained / resurrected / churned /
+      dormant). Active = >=1 delivered order in the month. City is acquisition_city (first delivered order's
+      city), fixed per customer so counts add up across cities. Activation fields are customer-level and
+      repeated on every row -- count them on period_number = 0 rows only. Built on int_customer_order_sequence.
+      Covers the full order-side keyspace (~100K), not dim_customer's ~90K.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - activity_month
+      - activation_reconciles
+    columns:
+      - name: customer_id
+        description: Foreign Key to dim_customer (same ~100K vs ~90K keyspace gap as fct_order_sales)
+        tests:
+          - not_null
+
+      - name: activity_month
+        description: Calendar month this row describes (joins to dim_date.month_start)
+        tests:
+          - not_null
+
+      - name: acquisition_city
+        description: City of the customer's first delivered order -- the city every lifecycle metric is attributed to
+        tests:
+          - not_null
+
+      - name: period_number
+        description: Months since acquisition (0 = acquisition month)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: true
+
+      - name: lifecycle_status
+        description: >
+          new = acquisition month; retained = active this and last month; resurrected = active this month,
+          inactive last month, acquired earlier; churned = inactive this month, active last month;
+          dormant = inactive this and last month.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['new', 'retained', 'resurrected', 'churned', 'dormant']
+
+      - name: days_since_last_order_at_month_end
+        description: >
+          Days from the customer's most recent delivered order (up to this month) to the end of this month,
+          capped at the dataset's last order date for the final month. Basis for an at-risk view.
+
+      - name: is_activated_30d
+        description: Customer placed a 2nd delivered order within 30 days of their first (customer-level, repeated per row)
+
+      - name: is_activation_window_complete
+        description: >
+          True when the customer has a full 30 days of data after their first order. Restrict the 30-day
+          activation KPI to these customers, or the latest cohort reads artificially low.
+
+  - name: mart_growth_accounting_monthly
+    description: >
+      KPI-tile mart for the Power BI retention page -- monthly growth accounting per acquisition city.
+      Additive counts only (mau, new, retained, resurrected, churned, prior_month_mau, delivered orders, GMV);
+      ratios must be computed as SUM/SUM in the BI layer. MAU is delivered-only, so it is <=
+      mart_executive_summary.monthly_active_users, which counts any order status.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - activity_month
+              - acquisition_city
+      - growth_accounting_identity
+      - churn_identity
+      - mau_within_executive_summary
+    columns:
+      - name: activity_month
+        description: Calendar month (joins to dim_date.month_start)
+        tests:
+          - not_null
+
+      - name: acquisition_city
+        description: Customers' first-order city
+        tests:
+          - not_null
+
+      - name: mau
+        description: Customers with >=1 delivered order in the month (attributed to acquisition_city)
+
+      - name: prior_month_mau
+        description: Customers active last month -- denominator for monthly retention (retained_customers / prior_month_mau)

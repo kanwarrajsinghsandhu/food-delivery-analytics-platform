@@ -56,8 +56,10 @@ with_experience_buckets as (
             else 'Slow (40+ min)'
         end as delivery_speed_bucket,
 
-        -- Rating buckets
+        -- Rating buckets. Unrated first orders get their own bucket: without the null branch they
+        -- fell through to 'Poor (<3.0)' (~30% of customers), so 'Poor' was mostly unrated orders.
         case
+            when f.first_order_rating is null then 'Unrated'
             when f.first_order_rating >= 4.5 then 'Excellent (4.5-5.0)'
             when f.first_order_rating >= 4.0 then 'Good (4.0-4.5)'
             when f.first_order_rating >= 3.0 then 'Fair (3.0-4.0)'
