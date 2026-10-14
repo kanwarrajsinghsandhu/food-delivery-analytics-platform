@@ -9,6 +9,9 @@ recommended (§2.6) — that is a correction, not a new model.
 > model comments. Where a figure contradicts existing documentation, the live value is used and the
 > discrepancy is called out.
 
+> **2026-10-14 — Power BI status:** Part 6 (Page 1) has been rewritten for Power BI with a 1280×720 wireframe and
+> re-verified `RAW_V2` numbers. Everything else (Parts 0-2, 7-9) is still the Streamlit-era spec on the old tutorial data.
+
 ---
 
 ## Table of contents
@@ -21,7 +24,7 @@ recommended (§2.6) — that is a correction, not a new model.
 | 3 | [Information architecture & navigation](#part-3--information-architecture--navigation) |
 | 4 | [Design system — colour, typography, spacing](#part-4--design-system) |
 | 5 | [Filters & interaction model](#part-5--filters--interaction-model) |
-| 6 | [Page 1 — Marketplace Health](#part-6--page-1--marketplace-health) |
+| 6 | [Page 1 — Marketplace Health (Power BI)](#part-6--page-1--marketplace-health) |
 | 7 | [Page 2 — Customer Value](#part-7--page-2--customer-value) |
 | 8 | [Page 3 — Retention & Activation](#part-8--page-3--retention--activation) |
 | 9 | [Page 4 — Method & Data Quality](#part-9--page-4--method--data-quality) |
@@ -472,324 +475,269 @@ previous render rather than dropping to a spinner.
 
 ---
 
-# Part 6 — Page 1 — Marketplace Health
+# Part 6 — Page 1 — Marketplace Health (Power BI)
+
+> **Power BI rewrite, 2026-10-14.** This Part replaces the earlier Streamlit/Plotly spec for Page 1. All
+> numbers below were **re-verified live on `RAW_V2`** (reporting window 2024-01-01 → 2026-06-30, delivered
+> orders for revenue) and supersede Part 1's figures for this page. Parts 7-9 are still the Streamlit
+> specs and still carry old-data numbers until they are redone. **Order data is simulated** (see
+> `data_generator/README.md`), so trends here are properties of the simulation, not business findings.
 
 ## A. Page objective
 
 Answer **"what is happening across the marketplace, and is it healthy?"** in one screen: commercial
-scale and trajectory, customer activity, fulfilment reliability, and where demand sits geographically.
-Used by an exec or GM in a weekly review to decide whether anything needs investigating.
+scale and trajectory, customer activity, fulfilment reliability and the demand mix. Audience: an exec or GM
+in a weekly review deciding whether anything needs investigating.
 
-## B. User journey
+## B. User journey (reading order = the letters on the wireframe)
 
-Land → read five KPIs (scale + trajectory) → read the GMV hero (is growth real and sustained?) → check
-customer activity and retention move with it → check fulfilment (delivery-time distribution, outcome
-mix) → scan the city matrix for a geographic outlier → optionally open the restaurant lookup.
+Land → **A** read the title and context → **B** confirm the filters → **C1-C5** read five KPIs →
+**D** read the GMV hero (is growth real, and is it volume or basket?) → **E, F** check customer count and
+retention move with it → **G, H** check fulfilment → **I** see what is selling → **K** open city detail if a
+geographic question arises.
 
-## C. Navigation
+## C. Canvas and navigation
 
-Sidebar section **Overview**, first entry, default landing page. Sidebar carries the global filter bar.
+| Setting | Value |
+|---|---|
+| Page size | 16:9, **1280 × 720 px**, no scroll. View mode "Fit to page" |
+| Page background | Surface token (light `#f6f5f1`, dark `#16171a`); visuals on `#ffffff` / `#1f2024` cards, 8px radius |
+| Margins | 16px left/right; nav rail 96px wide; 12px gutters between visuals, 8px between bands |
+| Navigation | Left rail (page-navigator visual): Marketplace (active), Customer Value, Retention, Method |
+| Default landing | This page, first in the page order |
 
-## D. Global filters
+## D. Wireframe (schematic — the px table below is authoritative)
 
-Date range, City, Cuisine tag, Order outcome (all four — this is the only page using all of them).
+Letters are reading order. Boxes show relative size and position only; chart shapes are placeholders.
 
-## E. Page-specific filters
+```text
++------+ +--------------------------------------+ +----------------+ +---------+ +-----------+ +-----------+
+|      | | A  Marketplace Health                | | B1 Date range  | | B2 City | | B3 Cuisine| | B4 Outcome|
+| NAV  | +--------------------------------------+ +----------------+ +---------+ +-----------+ +-----------+
+|      |
+|[1]Mkt| +-----------------+ +-----------------+ +-----------------+ +-----------------+ +-----------------+
+|[2]Cus| | C1 GMV          | | C2 Delivered    | | C3 AOV          | | C4 Active cust. | | C5 Failure rate |
+|[3]Ret| | $79.7M CAD      | | 9.23M orders    | | $8.63 CAD       | | 61,155 (Jun-26) | | 7.94%           |
+|[4]Met| +-----------------+ +-----------------+ +-----------------+ +-----------------+ +-----------------+
+|      |
+|      | +------------------------------------------------------------+ +----------------------------------+
+|      | | D  V1.1 MONTHLY GMV (CAD)  -- hero, line + fill            | | E  V1.3 MONTHLY ACTIVE CUSTOMERS |
+|      | |                                                            | |   ____..---'''  steady rise      |
+|      | |   /\      /\        /\   /\/\   /                          | |  /  \___/\_/                     |
+|      | |  /  \/\  /  \/\    /  \_/    \_/                           | +----------------------------------+
+|      | | /      \/      \__/                                        |
+|      | |                                                            | +----------------------------------+
+|      | +------------------------------------------------------------+ | F  V1.4 MoM RETENTION (60-100%)  |
+|      | | V1.2 Monthly orders (shared x-axis)                        | |  ~~~~~~~~ flat 88-90% ~~~~~~~~   |
+|      | |  __.--.__/\/-.__.--'\/\__.--                               | |                                  |
+|      | +------------------------------------------------------------+ +----------------------------------+
+|      |
+|      | +--------------------------------------------+ +----------------------------+ +-------------------+
+|      | | G  V1.5 DELIVERY TIME DISTRIBUTION         | | H  V1.6 OUTCOME MIX        | | I  V1.7 CUISINES  |
+|      | |                                            | | 100% stacked, by month     | |  by GMV (top 12)  |
+|      | |        .:|||:.                             | |                            | |                   |
+|      | |      .:|||||||:.                           | | Delivered  ~92%            | | North Indian #### |
+|      | |    .:|||||||||||:.                         | | Cancelled  5-7%            | | Chinese      ###  |
+|      | |  .:||||||||||||||||:.                      | | Refunded   ~2.5%           | | Biryani      ##   |
+|      | | 8   |30        60    80 (min)              | |                            | | ...               |
+|      | | two-tone bars: <=30 | >30                  | |                            | |                   |
+|      | |                                            | |                            | |                   |
+|      | +--------------------------------------------+ +----------------------------+ +-------------------+
+|      |
+|      | +--------------------------------------------------------------------------------+ +--------------+
+|      | | J  Simulated data | MAU & retention ignore City+Cuisine | 30 min = proxy       | | K City detail|
++------+ +--------------------------------------------------------------------------------+ +--------------+
+```
 
-None. The metric-selector radio currently inside the GMV card is removed; both measures are shown as
-linked panels instead.
+### Position table (px on the 1280 × 720 canvas)
+
+| ID | Element | x | y | w | h | Band |
+|---|---|---|---|---|---|---|
+| NAV | Page navigator rail | 0 | 0 | 96 | 720 | Left rail |
+| A | Title + subtitle (text box) | 112 | 8 | 472 | 52 | Header |
+| B1 | Slicer — Date range (between) | 600 | 8 | 212 | 52 | Header |
+| B2 | Slicer — City (dropdown) | 824 | 8 | 128 | 52 | Header |
+| B3 | Slicer — Cuisine tag (dropdown) | 964 | 8 | 152 | 52 | Header |
+| B4 | Slicer — Order outcome (dropdown) | 1128 | 8 | 136 | 52 | Header |
+| C1 | KPI card — GMV | 112 | 68 | 220 | 84 | KPI row |
+| C2 | KPI card — Delivered orders | 345 | 68 | 220 | 84 | KPI row |
+| C3 | KPI card — AOV | 578 | 68 | 220 | 84 | KPI row |
+| C4 | KPI card — Monthly active customers | 811 | 68 | 220 | 84 | KPI row |
+| C5 | KPI card — Order failure rate | 1044 | 68 | 220 | 84 | KPI row |
+| D | **V1.1 Monthly GMV (hero)** | 112 | 164 | 744 | 152 | Hero |
+| D2 | V1.2 Monthly orders (companion, flush under D, shared x-axis) | 112 | 316 | 744 | 76 | Hero |
+| E | V1.3 Monthly active customers | 868 | 164 | 396 | 110 | Hero side |
+| F | V1.4 Monthly retention rate | 868 | 282 | 396 | 110 | Hero side |
+| G | V1.5 Delivery time distribution | 112 | 404 | 480 | 252 | Fulfilment / mix |
+| H | V1.6 Order outcome mix | 604 | 404 | 330 | 252 | Fulfilment / mix |
+| I | V1.7 Top cuisine tags by GMV | 946 | 404 | 318 | 252 | Fulfilment / mix |
+| J | Caveat text box (always visible) | 112 | 664 | 972 | 48 | Footer |
+| K | Button — "City detail" (drill-through to Page 1b) | 1100 | 664 | 164 | 48 | Footer |
+
+Band check: header 8-60 · KPIs 68-152 · hero 164-392 · row 3 404-656 · footer 664-712 (8px bottom margin).
+Widths: content spans x 112 → 1264 in every band.
+
+**Moved off the canvas vs the Streamlit spec:** the **city performance matrix** (old V1.8) and the
+**restaurant lookup** do not fit a no-scroll 16:9 page alongside 8 visuals. They become **Page 1b "City
+detail"** (hidden page, reached by button K / right-click drill-through on a city). See the review checklist,
+item 1 — this is the main positioning decision to confirm.
+
+## E. Filters and interactions
+
+| Slicer | Field | Default | Applies to | Does **not** apply to |
+|---|---|---|---|---|
+| B1 Date range | `dim_date[date_day]` | 2024-01-01 → 2026-06-30 | everything on the page | — |
+| B2 City | `fct_order_sales[city]` | All | C1-C3, C5, D, D2, G, H, I | C4, E, F (platform-level distinct counts) |
+| B3 Cuisine tag | `bridge_order_cuisine[cuisine_tag]` | All | same as B2 | C4, E, F |
+| B4 Order outcome | `fct_order_sales[order_status]` | All | C2, C3, C5 denominators, G | D, D2 (GMV is delivered-only by definition), H (this chart *is* the outcome split) |
+
+- Slicers are **synced** across pages where the field is used; B4 is Page-1-only.
+- Use *Edit interactions* to switch off B4 → D/D2/H, and B2/B3 → C4/E/F. Show a tiny "ⓘ not filtered by City/Cuisine"
+  text in the corner of C4, E and F so a blank-looking filter isn't read as a bug.
+- Cross-highlighting: **off** between D, D2, E, F (time series), **on** G ↔ H ↔ I.
+- Do **not** hard-filter `dim_date` at report level: burn-in months (Jul-Dec 2023) must stay in the date table so
+  prior-year comparisons work. The Date slicer default is what hides them.
 
 ## F. Above / below the fold
 
-| Band | Content |
-|---|---|
-| **Above the fold** (~900px) | Title + subtitle + context chips · 5 KPI tiles · GMV hero with its order-volume companion panel |
-| **Below the fold** | Customer activity (2 charts) · Fulfilment (delivery distribution, outcome mix) · Geography (city matrix, cuisine bar) |
-| **Optional / expandable** | Restaurant lookup table · "How these numbers are computed" |
+Single screen, so everything is above the fold. Visual weight order: D (largest) → C1-C5 → G → E/F → H/I.
 
-## G. Wireframe
+## G. Data model for this page
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Marketplace Health                                                    (H1)   │
-│ Commercial scale, customer activity and fulfilment across 10M orders  (sub)  │
-│ Period: Jan 2024 – Jun 2026 · City: All (552) · Cuisine: All · Delivered     │
-├───────────┬───────────┬───────────┬───────────┬──────────────────────────────┤
-│ GMV       │ Delivered │ AOV       │ Monthly   │ Order Failure Rate           │
-│ $66.3M    │ 9.15M     │ $7.24     │ Active    │ 8.50%                        │
-│ CAD       │ orders    │ CAD       │ 84,972    │ cancelled + refunded         │
-├───────────┴───────────┴───────────┴───────────┴──────────────────────────────┤
-│  V1.1  HERO — Monthly GMV                              (full width, 300px)   │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │                                                             ╱          │  │
-│  │                                            ╱╲      ╱╲     ╱            │  │
-│  │                        ╱╲        ╱╲      ╱    ╲  ╱    ╲ ╱              │  │
-│  │      ╱╲      ╱╲      ╱    ╲    ╱    ╲  ╱                               │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│  V1.2  companion panel — Monthly orders   (full width, 110px, shared x-axis) │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │ ▁▁▂▂▂▃▃▃▄▄▄▅▅▅▅▆▆▆▆▇▇▇▇███                                             │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-├══════════════════════════════════════════════════════════════════════════════┤
-│  Customer activity                                                    (H2)   │
-├───────────────────────────────────┬──────────────────────────────────────────┤
-│ V1.3 Monthly active customers     │ V1.4 Monthly retention rate              │
-│      (half width, 280px)          │      (half width, 280px)                 │
-├═══════════════════════════════════╧══════════════════════════════════════════┤
-│  Fulfilment                                                           (H2)   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  V1.5 Delivery time distribution        (full width, 300px)                   │
-│        ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁      ╎ 30-min proxy threshold                          │
-├───────────────────────────────────┬──────────────────────────────────────────┤
-│ V1.6 Order outcome mix over time  │ V1.7 Top cuisine tags by GMV             │
-│      (half width, 280px)          │      (half width, 280px)                 │
-├═══════════════════════════════════╧══════════════════════════════════════════┤
-│  Where demand sits                                                    (H2)   │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  V1.8 City performance matrix                    (full width, ~420px)         │
-│  City │ Orders │ GMV │ AOV │ Rating │ Median delivery │ >30 min share          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  ▸ Restaurant lookup (148,541 restaurants — min 100 orders)        [expander] │
-│  ▸ How these numbers are computed                                 [expander] │
-└──────────────────────────────────────────────────────────────────────────────┘
+| Table | Role | Relationship |
+|---|---|---|
+| `dim_date` | Marked date table (`date_day`) | 1 → * `fct_order_sales[order_date]`; 1 → * `mart_executive_summary[order_date]` |
+| `fct_order_sales` | Order facts: GMV, orders, outcome, delivery minutes, city | — |
+| `bridge_order_cuisine` | Order × cuisine tag | `fct_order_sales[order_id]` 1 → * `bridge[order_id]`, **cross-filter Both** (so the Cuisine slicer and the cuisine axis in I filter orders) |
+| `mart_executive_summary` | Month-level MAU / retention only (values repeat across the days of a month) | via `dim_date` |
+
+Rules (from `bridge_order_cuisine.sql` and `bi_dashboard_plan_phase_a.md`):
+- **Never sum order measures directly from the bridge** — an order with N tags appears N times. Always aggregate
+  `fct_order_sales` and let the bridge only filter. Visual I deliberately shows a per-tag total that exceeds
+  platform GMV; footnote it.
+- No `customer_id` relationship from `mart_customer_rfm` / `dim_customer` to any order-side table.
+- GMV, orders, AOV, failure rate and outcome mix come from `fct_order_sales` (so they respond to City/Cuisine).
+  Only MAU and retention come from `mart_executive_summary`, which is why they ignore those slicers.
+
+### Measures (DAX, in a `_Measures` table)
+
+```dax
+Orders            = COUNTROWS ( fct_order_sales )
+Delivered Orders  = CALCULATE ( [Orders], fct_order_sales[is_delivered] = TRUE () )
+GMV (CAD)         = CALCULATE ( SUM ( fct_order_sales[sales_amount_cad] ), fct_order_sales[is_delivered] = TRUE () )
+AOV (CAD)         = DIVIDE ( [GMV (CAD)], [Delivered Orders] )          -- ratio of sums, never AVERAGE of daily AOV
+Failure Rate      = DIVIDE ( CALCULATE ( [Orders], fct_order_sales[is_delivered] = FALSE () ), [Orders] )
+Outcome Share     = DIVIDE ( [Orders], CALCULATE ( [Orders], ALL ( fct_order_sales[order_status] ) ) )
+
+MAU (month)       = MAX ( mart_executive_summary[monthly_active_users] )      -- MAX, not AVERAGE: month constant repeated per day
+MAU (latest)      = VAR d = MAX ( mart_executive_summary[order_date] )
+                    RETURN CALCULATE ( MAX ( mart_executive_summary[monthly_active_users] ), mart_executive_summary[order_date] = d )
+Retention (month) = MAX ( mart_executive_summary[monthly_retention_rate] )
+
+-- KPI comparison: last 6 months vs the same 6 months a year earlier; ignores the Date slicer, respects City/Cuisine.
+Data End          = CALCULATE ( MAX ( fct_order_sales[order_date] ), ALL ( dim_date ) )
+GMV L6M           = CALCULATE ( [GMV (CAD)], DATESINPERIOD ( dim_date[date_day], [Data End], -6, MONTH ) )
+GMV L6M PY        = CALCULATE ( [GMV L6M], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
+GMV YoY %         = DIVIDE ( [GMV L6M] - [GMV L6M PY], [GMV L6M PY] )
+-- Same L6M / L6M PY / YoY pattern for Delivered Orders, AOV, MAU (latest vs same month PY) and Failure Rate (pp change).
 ```
 
 ## H. Visual specifications
 
-### KPI row (5 tiles, equal width, 104px min-height, 16px gaps)
+### KPI row — C1-C5 (card visuals, 220 × 84, label above value, delta line below)
 
-| # | Label | Value | Format | Unit | Comparison | Colour | Source |
-|---|---|---|---|---|---|---|---|
-| K1.1 | Gross Merchandise Value (GMV) | `$66.3M` | `$0.0`+M/K, 1 dp | CAD | `+8.4% vs prior 6 months` | Ink only; delta in `good`/`critical` **only because revenue direction is unambiguous** | `MART_EXECUTIVE_SUMMARY.gmv_cad` |
-| K1.2 | Delivered Orders | `9,150,122` | thousands separator, 0 dp | orders | `+9.1% vs prior period` | Ink only | `…delivered_orders` |
-| K1.3 | Average Order Value (AOV) | `$7.24` | 2 dp | CAD | `flat (±0.3%)` in muted ink | **Neutral — never coloured.** AOV is flat by construction here (F4); a coloured delta would imply a signal that isn't there | `SUM(gmv_cad)/SUM(delivered_orders)` |
-| K1.4 | Monthly Active Customers | `84,972` | thousands separator | customers | `+3.4% vs 6 months ago` | Ink only | `MAX(monthly_active_users)` of the latest complete month |
-| K1.5 | Order Failure Rate | `8.50%` | 2 dp | % | `−0.2pp vs prior period` | `critical` only above a stated 10% threshold; otherwise ink | `SUM(cancelled+refunded)/SUM(total_orders)` |
+Values are the verified window total (Jan 2024 – Jun 2026) unless noted. Delta = last 6 months vs the same 6
+months a year earlier (H1 2026 vs H1 2025 at the default data end).
 
-**Not in the KPI row, deliberately:** Late Delivery % (F5 — meaningless at 51.81%), NPS proxy (adds
-nothing next to the rating distribution), Repeat Order Rate (belongs on Page 3 where it is defined
-against a cohort), Total Customers (a static 99,969 — not a health metric).
+| # | Label | Value (verified) | Delta shown | Measure | Notes |
+|---|---|---|---|---|---|
+| C1 | GMV (CAD) | **$79.7M** | **+25.3%** (H1 26 $19.14M vs H1 25 $15.27M) | `[GMV (CAD)]` | Ink; delta muted |
+| C2 | Delivered orders | **9,230,091** | **+18.8%** (2.11M vs 1.78M) | `[Delivered Orders]` | Ink |
+| C3 | Average order value (CAD) | **$8.63** | **+5.5%** ($9.06 vs $8.59) | `[AOV (CAD)]` | Ink. AOV drifts up in the simulation (price drift), so it is no longer flat — show the delta, never colour it |
+| C4 | Monthly active customers | **61,155** (Jun 2026) | **+23.0%** vs Jun 2025 (49,704) | `[MAU (latest)]` | Calendar-month active, not rolling 30-day. Ignores City/Cuisine |
+| C5 | Order failure rate | **7.94%** | **flat** (7.68% vs 7.66%) | `[Failure Rate]` | cancelled + refunded ÷ all orders. Turns `critical` only above a stated 10% threshold |
 
-### V1.1 + V1.2 — GMV hero with order-volume companion
+**Not on the page, deliberately:** Late Delivery % (the 30-min line is near the median — see G), NPS proxy,
+repeat-order rate (belongs on Page 3), total customers (static, not a health metric).
 
-| Element | Specification |
-|---|---|
-| **Section** | Hero (primary analysis) |
-| **Heading** | Monthly GMV |
-| **Subheading** | Gross merchandise value from delivered orders, by calendar month. The lower panel shows order volume on the same timeline — the two move together because AOV is flat. |
-| **Business question** | Is commercial growth real, sustained, and driven by volume or by basket size? |
-| **Data source** | `ZOMATO.MARTS.MART_EXECUTIVE_SUMMARY` |
-| **Grain** | Source `order_date`; aggregated to `date_trunc('month', order_date)` |
-| **Metrics** | Panel A: `gmv_cad`. Panel B: `total_orders` (or `delivered_orders` when Outcome = Delivered) |
-| **Calculation** | `SUM(gmv_cad) GROUP BY month`; `SUM(delivered_orders) GROUP BY month` |
-| **Numerator ÷ denominator** | n/a (both are sums, not ratios) |
-| **Unit** | CAD (A) · orders (B) |
-| **Aggregation** | SUM |
-| **X-axis** | `month`, monthly ticks, `Mmm YYYY`, ascending, **shared between both panels** |
-| **Y-axis** | A: GMV CAD, linear, **zero-based**, `$0.0M`. B: orders, linear, zero-based, `0.0M`. Independent scales in separate panels — **not** a dual axis |
-| **Legend** | None — one series per panel; each panel's heading names it |
-| **Data labels** | Off, except a direct label on the **final point** of each panel |
-| **Tooltip** | Unified crosshair across both panels: month · GMV (CAD) · delivered orders · AOV (CAD) · days in month |
-| **Colours** | Panel A line `#2a78d6` 2px + 12% fill to zero; Panel B line `#2a78d6` 2px, no fill (recessive companion) |
-| **Size** | Full width. A = 300px, B = 110px. `make_subplots(rows=2, shared_xaxes=True, row_heights=[0.73,0.27], vertical_spacing=0.06)` |
-| **Position** | Row 3, immediately under the KPI row — the single largest element on the page |
-| **Filters** | Date, city, cuisine, outcome |
-| **Interaction** | Hover crosshair; Plotly range-zoom on x; double-click resets. No click-to-filter |
-| **Default state** | Full 30-month history, delivered orders, all cities/cuisines |
-| **Footnote** | *"Monthly totals are affected by calendar length (Feb-2026's dip is 28 days, not a downturn). Hover shows days in month."* |
-
-> **Why one hero instead of two equal charts:** with AOV flat at $7.24, GMV ≈ orders × 7.24, so the two
-> series are the same shape. Presenting them as co-equal hero visuals would spend the page's most
-> valuable space on one story told twice. The companion panel keeps volume verifiable without
-> pretending it's independent information.
-
-### V1.3 — Monthly active customers
+### D + D2 — V1.1 Monthly GMV (hero) with V1.2 Monthly orders (companion)
 
 | Element | Specification |
 |---|---|
-| **Section** | Customer activity (secondary) |
-| **Heading** | Monthly active customers |
-| **Subheading** | Distinct customers ordering in each calendar month. Calendar-month active, not a rolling 30-day window. |
-| **Business question** | Is the active customer base growing alongside revenue, or is growth coming from existing customers ordering more? |
-| **Data source** | `MART_EXECUTIVE_SUMMARY.monthly_active_users` |
-| **Grain** | One value per calendar month (the field is month-constant, repeated per day) |
-| **Metric** | Monthly active customers |
-| **Calculation** | `MAX(monthly_active_users) GROUP BY month` — **`MAX`, not `AVG`**, because the value is already a month-level constant repeated across days (§2.1) |
-| **Numerator ÷ denominator** | n/a |
-| **Unit** | customers |
-| **Aggregation** | MAX within month (de-duplication, not averaging) |
-| **X-axis** | month, `Mmm YYYY`, ascending |
-| **Y-axis** | customers, linear, zero-based, `0,000` |
-| **Legend** | None (single series) |
-| **Data labels** | Final point only |
-| **Tooltip** | month · monthly active customers · daily active customers (month mean) · orders per active customer |
-| **Colour** | `#2a78d6` 2px line, ≥8px markers on hover |
-| **Size** | Half width, 280px |
-| **Position** | Row 4 left |
-| **Filters** | Date (city/cuisine do not apply — MAU is a platform-level distinct count and cannot be filtered without recomputation from `fct_order_sales`; footnoted) |
-| **Interaction** | Hover only |
-| **Default state** | Full history |
-| **Footnote** | *⚠️ Proxy: calendar-month active, not rolling 30-day.* |
+| Heading / subheading | Monthly GMV · "Gross merchandise value from delivered orders. The panel below shows order volume on the same timeline." |
+| Business question | Is growth real and sustained, and is it volume or basket size? |
+| Visual type | **D:** area/line chart. **D2:** line chart or thin column chart, flush under D, same width and x-position (set identical plot-area padding so the months line up) |
+| Axis | X: `dim_date[month_start]`, continuous, `mmm yyyy`, shared. Y: zero-based; D `$0.0M`, D2 `0.0M`. **Separate visuals, not a dual axis** |
+| Measures | D `[GMV (CAD)]`; D2 `[Delivered Orders]` |
+| Labels | Off, except last point of each |
+| Tooltip | month · GMV · delivered orders · AOV · days in month (tooltip page) |
+| Colour | `#2a78d6` line 2px, 12% fill on D only |
+| Footnote (in J or tooltip) | Seasonality is built into the simulation: festive peak Oct-Dec, monsoon dip Jul-Sep (e.g. Aug 2024 $2.08M vs Dec 2024 $2.73M). Feb is short (28 days), not a downturn |
 
-### V1.4 — Monthly retention rate
+### E — V1.3 Monthly active customers
+
+Line chart, `dim_date[month_start]` × `[MAU (month)]`, zero-based, last-point label. 45.1K (Jan 2024) → 61.2K (Jun 2026), with a dip to 43.7K in Jul 2024 (simulated monsoon).
+Footnote: *Proxy: calendar-month active, not rolling 30-day. Not filtered by City/Cuisine.*
+
+### F — V1.4 Monthly retention rate
+
+Line chart, `[Retention (month)]`, **fixed Y axis 60-100%** (clearly labelled window, not auto-fit). Range over the
+period: **87.7% – 90.4%**, i.e. flat. Subheading: "Of customers active last month, the share who ordered again this
+month." Footnote: *Retention is high because the simulation uses a heavy-user
+panel (~6-7 orders per active customer per month vs Swiggy's 4.07).* Not filtered by City/Cuisine.
+
+### G — V1.5 Delivery time distribution
 
 | Element | Specification |
 |---|---|
-| **Section** | Customer activity (secondary) |
-| **Heading** | Monthly retention rate |
-| **Subheading** | Of customers who ordered last month, the share who ordered again this month. Rising from 75% to 90% over the period. |
-| **Business question** | Is the platform holding onto its active base month over month? |
-| **Data source** | `MART_EXECUTIVE_SUMMARY.monthly_retention_rate` |
-| **Grain** | One value per calendar month |
-| **Metric** | Month-over-month retention rate |
-| **Calculation** | `MAX(monthly_retention_rate) GROUP BY month` |
-| **Numerator ÷ denominator** | **Customers active in month *M* who were also active in month *M−1*  ÷  customers active in month *M−1*** |
-| **Unit** | % |
-| **Aggregation** | Ratio of distinct counts (computed in the mart); MAX for month de-duplication |
-| **X-axis** | month, ascending |
-| **Y-axis** | %, **fixed `[0.60, 1.00]`** with a gridline every 5pp — a fixed, clearly-labelled window, not an auto-fit that exaggerates |
-| **Legend** | None |
-| **Data labels** | First and last point (75.3% → 89.2%) |
-| **Tooltip** | month · retention rate · prior-month customers · retained customers · churn rate |
-| **Colour** | `#2a78d6` 2px line |
-| **Size** | Half width, 280px |
-| **Position** | Row 4 right |
-| **Filters** | Date |
-| **Interaction** | Hover only |
-| **Default state** | Full history; Jan-2024 absent (no prior month) |
-| **Footnote** | *"Jan-2024 has no prior month, so it is excluded rather than shown as 0%."* |
+| Visual type | Clustered column chart. X: `delivery_time_min` as **categorical** axis (8-79), Y: `[Delivered Orders]` |
+| Colour | Two-tone via conditional formatting (rule on `delivery_time_min`): ≤ 30 min `#2a78d6`, > 30 min a lighter tint. No "late %" KPI |
+| Annotation | Text box over the plot: "Median 32 min · 30-min line is a proxy, not an SLA — 58.3% of delivered orders fall above it" |
+| Why a distribution | A 58% "late rate" would invite the conclusion the operation is failing; the shape shows the threshold is simply near the middle |
+| Footnote | *`is_late_delivery_proxy` = delivery_time_min > 30; no promised-ETA field exists* |
 
-### V1.5 — Delivery time distribution
+### H — V1.6 Order outcome mix
 
-| Element | Specification |
-|---|---|
-| **Section** | Fulfilment (diagnostic) |
-| **Heading** | Delivery time distribution |
-| **Subheading** | All 9.15M delivered orders by delivery minutes. The 30-minute proxy threshold sits at the median (31 min), so it splits the distribution roughly in half — it is not a service-level measure. |
-| **Business question** | How long do deliveries actually take, and is the "late" threshold telling us anything? |
-| **Data source** | `ZOMATO.MARTS.FCT_ORDER_SALES` |
-| **Grain** | `order_id`, binned to 1-minute `delivery_time_min` |
-| **Metric** | Delivered order count per minute bin |
-| **Calculation** | `SELECT delivery_time_min, COUNT(*) FROM fct_order_sales WHERE is_delivered GROUP BY 1` |
-| **Numerator ÷ denominator** | Optional secondary y as share: **orders in bin ÷ total delivered orders** |
-| **Unit** | orders (and % of delivered) |
-| **Aggregation** | COUNT |
-| **X-axis** | `delivery_time_min`, 8–87, integer ticks every 10 |
-| **Y-axis** | orders, zero-based, `0,000` |
-| **Legend** | None (single series) |
-| **Data labels** | Off — annotations instead: median 31 min, and the 8-minute floor spike (187,516 orders, a data artefact) |
-| **Tooltip** | minutes · orders · % of delivered · cumulative % |
-| **Colours** | Bars `#2a78d6`, 2px surface gap between bars. **Vertical rule at 30 min** in `#898781`, solid 1.5px, labelled *"30-min proxy threshold — 51.8% of orders fall above"* |
-| **Size** | Full width, 300px |
-| **Position** | Row 5, full width — it replaces the removed dual-axis chart |
-| **Filters** | Date, city, cuisine |
-| **Interaction** | Hover per bar; x-range zoom |
-| **Default state** | Full history, all cities |
-| **Footnote** | *⚠️ Proxy: `is_late_delivery_proxy` = delivery_time_min > 30. No promised-ETA field exists in source data, so this is an absolute threshold, not an SLA breach.* |
+100% stacked column by month. Series: `fct_order_sales[order_status]`; measure `[Outcome Share]`. Legend required, fixed order
+Delivered, Cancelled, Refunded. Colours (fixed platform-wide): Delivered `#0ca30c`, Cancelled `#d03b3b`, Refunded `#fab219`.
+Verified: delivered **90.7-92.4%** monthly; cancelled **5.1-6.8%** (highest Jul-Sep); refunded **2.4-2.6%**. The Outcome slicer is
+switched off for this visual.
 
-> **Why a distribution instead of a rate:** a 51.81% "late rate" invites the reader to conclude the
-> operation is failing. The distribution shows the truth — a tight symmetric bell from 8 to 87 minutes
-> centred on 31 — and makes the threshold's arbitrariness self-evident.
+### I — V1.7 Top cuisine tags by GMV
 
-### V1.6 — Order outcome mix over time
+Clustered bar, axis `bridge_order_cuisine[cuisine_tag]`, value `[GMV (CAD)]`, **Top N = 12 by GMV**, sorted descending, one colour
+`#2a78d6`, end-of-bar labels `$0.0M`. Verified order (full window, delivered): North Indian $20.0M, Chinese $17.5M, Biryani $11.2M,
+Indian $9.2M, South Indian $8.2M, Desserts $7.7M, Bakery $6.1M, Pizzas $6.1M, Snacks $5.8M, Beverages $5.7M, American $4.5M,
+Fast Food $4.3M. Footnote: *Orders count once per tag, so tag totals exceed platform GMV. The Cuisine slicer narrows which tags appear.*
 
-| Element | Specification |
-|---|---|
-| **Section** | Fulfilment (diagnostic) |
-| **Heading** | Order outcome mix over time |
-| **Subheading** | Share of orders delivered, cancelled and refunded each month. Stable at roughly 91.5% / 6.0% / 2.5%. |
-| **Business question** | Is fulfilment reliability stable, or is the failure rate drifting? |
-| **Data source** | `MART_EXECUTIVE_SUMMARY` (`delivered_orders`, `cancelled_orders`, `refunded_orders`) |
-| **Grain** | Calendar month |
-| **Metrics** | Share of each outcome |
-| **Calculation** | `SUM(<outcome>_orders) / SUM(total_orders) GROUP BY month` |
-| **Numerator ÷ denominator** | **Orders with that outcome in the month ÷ all orders in the month** |
-| **Unit** | % of orders |
-| **Aggregation** | Ratio of summed counts |
-| **X-axis** | month, ascending |
-| **Y-axis** | % of orders, `[0,100]` stacked to 100% |
-| **Legend** | Yes — required (3 series). Fixed order: Delivered, Cancelled, Refunded. Never reordered by size |
-| **Data labels** | Off; the legend plus tooltip carry identity and value |
-| **Tooltip** | month · outcome · orders · % of month |
-| **Colours** | **Status tokens, fixed platform-wide:** Delivered `#0ca30c`, Cancelled `#d03b3b`, Refunded `#fab219`. Each legend entry carries its text label (on the light surface `#fab219` is sub-3:1, so the label is the required mitigation) |
-| **Size** | Half width, 280px |
-| **Position** | Row 6 left |
-| **Filters** | Date, city, cuisine. Outcome filter is **ignored** here (this chart *is* the outcome breakdown) — noted in the subheading |
-| **Interaction** | Hover; legend click isolates a band |
-| **Default state** | Full history, 100% stacked |
-| **Footnote** | — (measured metric, no caveat needed) |
+### J — Caveat text box (always visible)
 
-> Replaces the order-status donut. A donut showed one static mix; this shows the same mix *plus*
-> whether it is drifting, in the same space.
+> *Order data is simulated — trends reflect the generator, not real demand. Active customers and retention are platform-level
+> and ignore the City/Cuisine filters. The 30-minute delivery line is a proxy, not an SLA.*
 
-### V1.7 — Top cuisine tags by GMV
+### K / Page 1b — City detail (drill-through)
 
-| Element | Specification |
-|---|---|
-| **Section** | Fulfilment / demand mix (diagnostic) |
-| **Heading** | Top cuisine tags by GMV |
-| **Subheading** | GMV attributed to each cuisine tag. Restaurants carry multiple tags, so an order tagged "North Indian, Chinese" counts under both — shares sum to more than 100%. |
-| **Business question** | Which cuisines carry the most revenue? |
-| **Data source** | `FCT_ORDER_SALES`, `cuisine` split with `LATERAL SPLIT_TO_TABLE(cuisine, ',')` |
-| **Grain** | Order × cuisine tag (a deliberate fan-out from `order_id`) |
-| **Metric** | GMV per cuisine tag |
-| **Calculation** | `SUM(IFF(is_delivered, sales_amount_cad, 0)) GROUP BY TRIM(tag)`, top 12 |
-| **Numerator ÷ denominator** | If shown as a share: **GMV for the tag ÷ SUM of GMV across all tag-order pairs** (*not* ÷ platform GMV — that denominator would be wrong given the fan-out) |
-| **Unit** | CAD |
-| **Aggregation** | SUM |
-| **X-axis** | GMV CAD, zero-based, `$0.0M` |
-| **Y-axis** | cuisine tag, **sorted by GMV descending** (longest bar at top) |
-| **Legend** | None (single series) |
-| **Data labels** | On, at the bar end, `$0.0M`, 1 dp |
-| **Tooltip** | tag · GMV (CAD) · orders · share of tagged orders · AOV |
-| **Colour** | **One hue for every bar: `#2a78d6`.** Not a value ramp (§4.1 rule 6) |
-| **Size** | Half width, 280px, 12 bars |
-| **Position** | Row 6 right |
-| **Filters** | Date, city, outcome. The cuisine filter narrows which tags appear |
-| **Interaction** | Hover per bar |
-| **Default state** | Top 12 tags, full history |
-| **Footnote** | *🧮 Derived: tags split from a comma-delimited field (2,133 raw combinations). Orders are counted once per tag, so totals exceed platform GMV.* |
+Table/matrix: city · orders · GMV · AOV · mean rating · median delivery min · share > 30 min, top 20 by GMV with data bars on GMV
+only. Context verified: **547 cities; top 10 = 60.3% of orders, top 20 = 70.5%** (Bangalore 1.21M, Hyderabad 1.14M, Chennai 0.96M,
+Delhi 0.74M, Pune 0.62M). Rating covers 70.0% of delivered orders (mean 4.21). Restaurant lookup (min 100 orders) lives here as a
+second table, framed as lookup, not leaderboard.
 
-> Replaces charting the 2,133 raw combination strings, where "North Indian,Chinese" and
-> "Chinese,North Indian" were separate categories. Splitting is an in-query transform — no new mart.
+## I. Guardrails carried over
 
-### V1.8 — City performance matrix
+No pie/donut/3D/dual-axis/funnel visuals · one colour per category platform-wide · ratios are ratio-of-sums, never averages of
+averages · month-constant fields use MAX · every proxy carries a footnote · caveat text is on the canvas, not hidden.
 
-| Element | Specification |
-|---|---|
-| **Section** | Where demand sits (detail) |
-| **Heading** | City performance |
-| **Subheading** | Top 20 cities by order volume — 67% of all orders. Median delivery time and rating are shown alongside volume so a large city with weak fulfilment is visible. |
-| **Business question** | Which cities drive volume, and does any of them underperform on fulfilment or satisfaction? |
-| **Data source** | `FCT_ORDER_SALES` |
-| **Grain** | `city` (one row per city) |
-| **Metrics** | Orders · GMV (CAD) · AOV (CAD) · mean rating · median delivery minutes · share over 30 min |
-| **Calculation** | `COUNT(*)` · `SUM(IFF(is_delivered, sales_amount_cad,0))` · `GMV ÷ delivered_orders` · `AVG(customer_rating)` on rated delivered orders · `MEDIAN(delivery_time_min)` on delivered · `COUNT_IF(is_late_delivery_proxy) ÷ COUNT_IF(is_delivered)` |
-| **Numerator ÷ denominator** | AOV = **GMV ÷ delivered orders in the city**. Over-30-min share = **delivered orders over 30 min in the city ÷ delivered orders in the city** |
-| **Unit** | orders · CAD · CAD · rating (1–5) · minutes · % |
-| **Aggregation** | COUNT · SUM · ratio of aggregates · AVG · MEDIAN · ratio of counts |
-| **X-axis / Y-axis** | n/a (table). Rows = cities sorted by GMV desc; columns as above |
-| **Legend** | None. The one conditional column carries an inline scale caption |
-| **Data labels** | All values visible as text — this is the page's table view, so nothing is colour-gated |
-| **Tooltip** | Native cell tooltip on truncated city names only |
-| **Colours** | Text in ink tokens. **One** conditional column — GMV — as a light sequential blue bar (`st.column_config.ProgressColumn`). Rating and delivery columns stay plain text: a second colour scale in one table pushes past the ~7-class limit and turns the table into a heat sheet |
-| **Size** | Full width, ~420px (20 rows, no inner scroll) |
-| **Position** | Row 7, full width |
-| **Filters** | Date, cuisine, outcome. City filter narrows the row set |
-| **Interaction** | Click a column header to sort; horizontal scroll suppressed by fitting 7 columns |
-| **Default state** | Top 20 by orders, sorted GMV desc |
-| **Footnote** | *"Rating covers 70% of delivered orders (unrated orders excluded from the mean). 552 cities exist; the top 20 are 67% of orders."* |
+## J. Review checklist (for the walk-through)
 
-### Expander — Restaurant lookup
-
-Collapsed `st.expander`, label **"Restaurant lookup (148,541 restaurants — minimum 100 orders)"**.
-Contains a searchable table: restaurant name · city · orders · GMV · AOV · mean order rating · median
-delivery minutes, filtered to ≥100 orders (27,005 qualify), sorted by GMV desc, limit 200 rows.
-
-Framed explicitly as **operational lookup, not a leaderboard** — footnote: *"No restaurant exceeds
-0.03% of platform GMV (top restaurant: $15,143 of $66.3M), and performance metrics are flat across
-volume tiers, so rank order here is not a meaningful performance signal."* This is the honest home for
-restaurant data given F6.
+1. **City matrix off-page?** I moved it to Page 1b to keep a no-scroll 16:9 page. Alternative: make the page 1280 × 1100 with
+   "Fit to width" and put the matrix under row 3. Which do you want?
+2. **Slicers top-right** (B1-B4) vs a left filter rail. Top-right keeps the hero wide; left rail steals ~160px.
+3. **Hero = GMV (D) at 744 × 228**, with E/F stacked to its right. Is that the right weight, or should MAU/retention move below?
+4. **KPI set:** GMV, Delivered, AOV, Active customers, Failure rate. Swap anything?
+5. **KPI deltas** use "last 6 months vs same 6 months prior year" — or prefer the Date slicer range vs the previous period?
+6. **Delivery histogram (G) 480 px wide** vs outcome (H) 330 px and cuisine (I) 318 px — is the cuisine bar big enough for 12 labels?
+7. **Footer caveat J** always visible on the canvas — fine, or tuck into an info button?
+8. **Nav rail** on the left (96 px) — or tabs along the top?
 
 ---
 

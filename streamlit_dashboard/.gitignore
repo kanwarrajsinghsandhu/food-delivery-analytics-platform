@@ -50,3 +50,7 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Snowflake key-pair material (cert/public key; private key above)
+.streamlit/rsa_cert.crt
+.streamlit/rsa_key.pub
